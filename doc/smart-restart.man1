@@ -1,0 +1,25 @@
+.TH SMART-RESTART 1
+.SH NAME
+smart-restart \- Restarts services automatically on system update
+
+.SH DESCRIPTION
+This application hooks 
+.BR yum/dnf 
+.BR install
+and runs a script located at
+.BR /usr/bin/smart-restart.sh
+
+smart-restart.sh will then try to restart all services linking against outdated libraries and ignores the services listed in the denylist-configuration at 
+.BR /etc/smart-restart-conf.d/smart-restart-denylist.cfg
+
+In case not all services could be restarted or the update shipped non-restartable components like the linux kernel, it will write a reboot-hint file with the last modified time to 
+.BR /dev/shm/reboot-hint-marker.
+After a reboot this file will disappear.
+
+.BR smart-restart.sh 
+also allows for pre and post restart scripts to be placed in the config directory
+.BR /etc/smart-restart-conf.d/
+
+Place the scripts you want to execute with the suffixes
+.BR XX-NAME-{pre,post}-restart.
+The order of execution is determined using a numeric prefix XX. The ordering is only done within the group itself (00-custom-pre-restart is executed before 00-custom-post-restart).

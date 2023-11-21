@@ -1,0 +1,5 @@
+# Add the service which should not be restarted. One per line
+# eg: auditd.service. This service cannot be restarted manually but only on changes to augen-rules 
+# which we don't have on a stock AL2 or AL2023 installation. That's why it's denylisted by default 
+# here.
+auditd.service

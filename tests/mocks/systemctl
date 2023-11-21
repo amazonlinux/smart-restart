@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+if [[ "$1" == "daemon-reexec" ]]; then
+    [[ $# == 1 ]] && exit 0
+    [[ "$DEBUG" != "" ]] && echo "systemd daemon-reexec called incorrectly: (No params: $# -> $@)"
+    exit 1
+elif [[ "$1" == "restart" ]]; then
+    [[ "$DEBUG" != "" ]] && echo "(No. params: $# -> ${@})"
+    if [[ $SYS_EXPECT_2 == 1 ]]; then
+        [[ $# == 3 ]] && [[ "$2" == "dummy.service" ]] && [[ "$3" == "dummy2.service" ]] && exit 0
+
+        exit 98
+    elif [[ $SYS_EXPECT_1 == 1 ]]; then
+        [[ $# == 2 ]] && [[ "$2" == "dummy2.service" ]] && exit 0
+
+        exit 98
+    elif [[ $SYS_EXPECT_0 == 1 ]]; then
+        [[ $# == 1 ]] && exit 0;
+    else
+        exit 98
+    fi
+else
+    echo "systemd called incorrectly: (No params: $# -> $@)"
+    exit 1
+fi
+
+exit 98

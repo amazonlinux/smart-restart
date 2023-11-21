@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+
+S=""
+readonly OS_VERSION=$(cut -d ":" -f6 /etc/system-release-cpe)
+
+if [[ "$OS_VERSION" -eq "2" ]]; then
+    S="->"
+elif [[ "$OS_VERSION" -eq "2023" ]]; then
+    S="*"
+fi
+
+if [[ "$1" == "-s" ]]; then
+
+    if [[ $NEED_RESTART_2 == 1 ]]; then
+        echo "dummy.service"
+        echo "dummy2.service"
+    elif [[ $NEED_RESTART_1 == 1 ]]; then
+        echo "dummy2.service"
+    elif [[ $NEED_RESTART_0 == 1 ]]; then
+        echo ""
+    else
+        exit 99
+    fi
+elif [[ "$1" == "--reboothint" ]]; then
+    if [[ $REBOOTHINT_USER_KERNEL == 1 ]]; then
+        echo "$S glibc"
+        echo "$S kernel"
+    elif [[ $REBOOTHINT_KERNEL == 1 ]]; then
+        echo "$S kernel"
+    elif [[ $REBOOTHINT_USER == 1 ]]; then
+        echo "$S glibc"
+    else
+        exit 99
+    fi
+fi
+

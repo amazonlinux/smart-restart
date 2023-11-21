@@ -57,3 +57,57 @@ If you discover a potential security issue in this project we ask that you notif
 ## Licensing
 
 See the [LICENSE](LICENSE) file for our project's licensing. We will ask you to confirm the licensing of your contribution.
+
+# Contributing to the Smart-Restart
+
+All contributions to the Smart-Restart package are welcome and should be made via GitHub [pull
+requests](ADD-LINK) and discussed using GitHub [issues](ADD-LINK).
+
+## Before you start
+
+If you would like to make a significant change, it's a good idea to first open
+an issue to discuss it.
+
+## Making the request
+
+Development takes place against the `dev` branch of this repository and pull
+requests should be opened against that branch.
+
+## Testing
+
+Smart-Restart comes with a preset of tests checking the happy and fail path for
+all three main components:
+
+1) Restarting services & denylisting
+2) Reboothint maker file generation
+3) Correct execution order for the pre & post restart hooks
+
+The subfolder `test` contains scripts prefixed with "test-" which are executed with the `make test` target.
+
+Each new test script must source the `setup_test` harness. It is also advicable to provide a TEST_NAME
+```
+TEST_NAME="MY NEW TEST"
+. "$(pwd)"/setup_test
+```
+
+Then, the individual functions from `smart-restart.sh` can be called.
+
+Smart-Restarting provides mocks for `systemctl` and `needs-restarting` where their functionality can be
+controlled using variables. For example
+
+```
+NEED_RESTART_2=1 assemble_service_list
+```
+
+will instruct `needs-restarting` called in the `smart-restart.sh:assemble_service_list()` to return 2 services
+requiring a restart. In analogy `NEED_RESTART_0=1` will report 0 services.
+
+`systemctl` mock can be instructed to expect a amount of services using `SYS_EXPECT_{0,1,2}=1`.
+
+Additionally, the mocks themselves can be overriden.
+
+```
+SYSCTL_COMMAND=/bin/false restart_services || retval="$?"
+```
+
+In this case, the test will fail, if restart_services tries to execute the mocked `systemctl`.
