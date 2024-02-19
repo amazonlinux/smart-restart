@@ -1,27 +1,78 @@
 #!/usr/bin/env bash
 
+SERVICE_STATUS_RUNNING="● chronicled.service - chronicled
+   Loaded: loaded (/usr/lib/systemd/system/chronicled.service; enabled; vendor preset: disabled)
+   Active: active (running) since Thu 2023-11-16 09:22:15 CET; 2 weeks 1 days ago
+ Main PID: 10200 (chronicled)
+    Tasks: 37
+   Memory: 256.7M
+   CGroup: /system.slice/chronicled.service
+           └─10200 /usr/local/chronicle/sbin/chronicled
+
+Dec 01 10:06:19 HOST systemd[1]: [/usr/lib/systemd/system/chronicled.service:4] Unknow...it'
+Dec 01 10:06:19 HOST systemd[1]: [/usr/lib/systemd/system/chronicled.service:5] Unknow...it'
+Dec 01 10:06:19 HOST systemd[1]: [/usr/lib/systemd/system/chronicled.service:4] Unknow...it'
+Dec 01 10:06:19 HOST systemd[1]: [/usr/lib/systemd/system/chronicled.service:5] Unknow...it'
+Dec 01 10:29:42 HOST systemd[1]: [/usr/lib/systemd/system/chronicled.service:4] Unknow...it'
+Dec 01 10:29:42 HOST systemd[1]: [/usr/lib/systemd/system/chronicled.service:5] Unknow...it'
+Dec 01 10:29:42 HOST systemd[1]: [/usr/lib/systemd/system/chronicled.service:4] Unknow...it'
+Dec 01 10:29:42 HOST systemd[1]: [/usr/lib/systemd/system/chronicled.service:5] Unknow...it'
+Dec 01 10:29:42 HOST systemd[1]: [/usr/lib/systemd/system/chronicled.service:4] Unknow...it'
+Dec 01 10:29:42 HOST systemd[1]: [/usr/lib/systemd/system/chronicled.service:5] Unknow...it'
+Hint: Some lines were ellipsized, use -l to show in full.
+"
+
+SERVICE_STATUS_FAILED="● network.service - LSB: Bring up/down networking
+   Loaded: loaded (/etc/rc.d/init.d/network; bad; vendor preset: disabled)
+   Active: failed (Result: timeout) since Thu 2023-11-16 09:22:14 CET; 2 weeks 1 days ago
+     Docs: man:systemd-sysv-generator(8)
+   CGroup: /system.slice/network.service
+           ├─10737 /sbin/dhclient -q -lf /var/lib/dhclient/dhclient--eth0.lease -pf /var/run/dhclient-eth0.pid -H dev-dsk-suschako-1a-...
+           └─10789 /sbin/dhclient -6 -nw -lf /var/lib/dhclient/dhclient6--eth0.lease -pf /var/run/dhclient6-eth0.pid eth0 -H dev-dsk-s...
+
+Dec 01 10:46:41 dev-dsk-suschako-1a-32125e6f.eu-west-1.amazon.com dhclient[10789]: XMT: Solicit on eth0, interval 123790ms.
+Dec 01 10:48:45 dev-dsk-suschako-1a-32125e6f.eu-west-1.amazon.com dhclient[10789]: XMT: Solicit on eth0, interval 110330ms.
+Dec 01 10:50:35 dev-dsk-suschako-1a-32125e6f.eu-west-1.amazon.com dhclient[10789]: XMT: Solicit on eth0, interval 124670ms.
+Dec 01 10:52:40 dev-dsk-suschako-1a-32125e6f.eu-west-1.amazon.com dhclient[10789]: XMT: Solicit on eth0, interval 118210ms.
+Dec 01 10:54:38 dev-dsk-suschako-1a-32125e6f.eu-west-1.amazon.com dhclient[10789]: XMT: Solicit on eth0, interval 130040ms.
+Dec 01 10:56:48 dev-dsk-suschako-1a-32125e6f.eu-west-1.amazon.com dhclient[10789]: XMT: Solicit on eth0, interval 125680ms.
+Dec 01 10:58:01 dev-dsk-suschako-1a-32125e6f.eu-west-1.amazon.com dhclient[10737]: DHCPREQUEST on eth0 to 10.15.96.1 port 67 (xid=0...74)
+Dec 01 10:58:01 dev-dsk-suschako-1a-32125e6f.eu-west-1.amazon.com dhclient[10737]: DHCPACK from 10.15.96.1 (xid=0x66783e74)
+Dec 01 10:58:01 dev-dsk-suschako-1a-32125e6f.eu-west-1.amazon.com dhclient[10737]: bound to 10.15.105.243 -- renewal in 1676 seconds.
+Dec 01 10:58:54 dev-dsk-suschako-1a-32125e6f.eu-west-1.amazon.com dhclient[10789]: XMT: Solicit on eth0, interval 130260ms.
+Hint: Some lines were ellipsized, use -l to show in full.
+"
+
+
+
+DBG() { [[ "$DEBUG" != "" ]] && >&2 echo  "$@"; }
+
+DBG "systemctl-mock invoced with: ${@}"
+
 if [[ "$1" == "daemon-reexec" ]]; then
     [[ $# == 1 ]] && exit 0
-    [[ "$DEBUG" != "" ]] && echo "systemd daemon-reexec called incorrectly: (No params: $# -> $@)"
+    DBG "systemd daemon-reexec called incorrectly: (No params: $# -> $@)"
     exit 1
 elif [[ "$1" == "restart" ]]; then
-    [[ "$DEBUG" != "" ]] && echo "(No. params: $# -> ${@})"
     if [[ $SYS_EXPECT_2 == 1 ]]; then
         [[ $# == 3 ]] && [[ "$2" == "dummy.service" ]] && [[ "$3" == "dummy2.service" ]] && exit 0
-
-        exit 98
     elif [[ $SYS_EXPECT_1 == 1 ]]; then
         [[ $# == 2 ]] && [[ "$2" == "dummy2.service" ]] && exit 0
-
-        exit 98
     elif [[ $SYS_EXPECT_0 == 1 ]]; then
         [[ $# == 1 ]] && exit 0;
     else
         exit 98
     fi
+elif [[ "$1" == "status" ]]; then
+    if [[ $SYS_RESTART_FAILED == "1" ]]; then
+        echo "$SERVICE_STATUS_FAILED"
+        exit 3
+    else
+        echo "$SERVICE_STATUS_RUNNING"
+        exit 0
+    fi
 else
-    echo "systemd called incorrectly: (No params: $# -> $@)"
-    exit 1
+    DBG "systemd called incorrectly: (No params: $# -> $@)"
 fi
 
 exit 98

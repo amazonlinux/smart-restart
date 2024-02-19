@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 
 S=""
-readonly OS_VERSION=$(cut -d ":" -f6 /etc/system-release-cpe)
+# Required for testing on a ubuntu-based machine. Specifically on a 
+# github-hosted test-runners.
+LOCAL_OS_VERSION=$(cut -d ":" -f6 /etc/system-release-cpe)
+OS_VERSION=${OS_VERSION:-$LOCAL_OS_VERSION}
 
 if [[ "$OS_VERSION" -eq "2" ]]; then
     S="->"

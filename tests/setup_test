@@ -5,6 +5,7 @@
 # This file needs to be sourced in all tests. Additionally, `TEST_NAME` can be set:
 # TEST_NAME="MY NEW TEST"
 # . "$(pwd)"/setup_test
+# Also, to reset the state before test execution, call reset_test_environment in every test.
 
 RED='\033[1;91m'
 GREEN='\033[1;92m'
@@ -28,6 +29,18 @@ echo -e "=========================== ${YELLOW}$TEST_NAME${COLOR_OFF} started "==
 
 . $UUT
 
+# We're testing here sourced bash scripts, global variables keep their values in between tests. 
+# reset_test_environment resets them so every test starts from a clean state
+reset_test_environment() {
+    SERVICES=()
+    BLOCKED_SERVICES=()
+    PRE_RESTART_HEALTHY="0"
+    POST_RESTART_HEALTHY="0"
+    echo "" > conf/default-denylist
+    echo "" > conf/custom-denylist
+    rm -rf "$(pwd)/reboot-hint-marker"
+}
+
 PASSED() {
     echo -e " test ${TEST_NAME} [${GREEN}PASSED${COLOR_OFF}]: $1"
 }
@@ -35,5 +48,3 @@ PASSED() {
 FAILED() {
     echo -e " test ${TEST_NAME} [${RED}FAILED${COLOR_OFF}]: $1"
 }
-
-
