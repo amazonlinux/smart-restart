@@ -21,3 +21,4 @@ jobs:
           exclude: "./.git/*" # Optional.
           check_all_files_with_shebangs: "true" # Optional.
           fail_on_error: "true"
+          shellcheck_flags: --severity=warning
