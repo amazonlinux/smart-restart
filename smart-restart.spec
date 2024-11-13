@@ -1,34 +1,42 @@
+%define _trivial	.0
+%define _buildid	.3
 Name:           smart-restart
-Version:        0.1
+Version:        0.2
 Release:        1%{?dist}
 Summary:        Restarts services after the libs they link against have changed.
 
 License:        Apache 2.0
 
-%if "%{dist}" == ".amzn2023"
-Requires:       dnf-utils 
-Requires:       dnf-plugin-post-transaction-actions
-%define         _plugin_path dnf/plugins/post-transaction-actions.d/
+%if 0%{?amzn2}
+%bcond_without yum
 %else
-%if "%{dist}" == ".amzn2"
+%bcond_with yum
+%endif
+
+%if %{with yum}
 Requires:       yum-utils 
 Requires:       yum-plugin-post-transaction-actions
 %define         _plugin_path yum/post-actions/
+%define         pkg_manager yum
 %else
-%{error Distribution "%{expand:%{?dist}}" not supported}
-%endif
+Requires:       dnf-utils
+Requires:       dnf-plugin-post-transaction-actions
+%define         _plugin_path dnf/plugins/post-transaction-actions.d/
+%define         pkg_manager dnf
 %endif
 
-Source:         %{name}-%{version}-%{release}.tar.gz
+
+URL:            https://github.com/amazonlinux/smart-restart/archive/v%{version}/
+Source0:        %{name}-v%{version}.tar.gz
+
 %description    
-Hooks dnf and automatically restarts services after updates to their dependencies
+Hooks dnf/yum and automatically restarts services after updates to their dependencies
 
 %prep
-%setup -n %{name}-%{version}-%{release}
+%autosetup -n %{name}-v%{version}
 
-$install
-# The makefile uses DNF as the default package manager, we can override with yum using PKG_MANAGER=yum
-make DEST_DIR=$RPM_BUILD_ROOT DIST=%{?dist} PREFIX=%{_bindir} install
+%install
+make DEST_DIR=$RPM_BUILD_ROOT pkg_manager=%{pkg_manager} PREFIX=%{_bindir} install
 
 
 %files
@@ -36,10 +44,9 @@ make DEST_DIR=$RPM_BUILD_ROOT DIST=%{?dist} PREFIX=%{_bindir} install
 %{_bindir}/%{name}.sh
 %config %{_sysconfdir}/%{_plugin_path}/install.action
 %config %{_sysconfdir}/smart-restart-conf.d/default-denylist
-%doc /usr/share/man/man1/smart-restart.man1
+%doc %{_mandir}/man1/smart-restart.man1.gz
 
-# Update man db 
-# %post
-# /usr/bin/mandb
-
+%changelog
+* Wed Mar 06 2024 Stanislav Uschakow <suschako@amazon.de> - 0.1-1.amzn2023.0.1
+- Initial release of smart-restart-v0.1-1 for al2023
 
