@@ -37,7 +37,7 @@ all:
 srpm: sources
 
 sources: 
-	tar czf ./smart-restart-$(VERSION).tar.gz --transform 's,^,smart-restart-$(VERSION)/,' bin conf Makefile smart-restart.spec doc/smart-restart.man1
+	tar czf ./smart-restart-v$(VERSION).tar.gz --transform 's,^,smart-restart-v$(VERSION)/,' bin conf Makefile smart-restart.spec doc/smart-restart.man1
 
 install: 
 	$(info Dest: $(DEST_DIR))
