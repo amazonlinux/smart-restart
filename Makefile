@@ -1,13 +1,11 @@
 DEST_DIR?=/
 PREFIX?=/usr/bin
 HOOK_DIR=
-DIST?=$(shell cut -d ":" -f6 /etc/system-release-cpe)
 
 MAJOR=0
-MINOR=1
-RELEASE=1
+MINOR=2
 
-VERSION=$(MAJOR).$(MINOR)-$(RELEASE)
+VERSION=v$(MAJOR).$(MINOR)
 
 $(info Building version $(VERSION))
 
@@ -16,7 +14,7 @@ $(info Building version $(VERSION))
 HOOK_DIR=/etc/dnf/plugins/post-transaction-actions.d
 HOOK_COMMAND=in
 
-ifeq ($(PKG_MANAGER),yum)
+ifeq ($(pkg_manager),yum)
 HOOK_DIR=/etc/yum/post-actions
 HOOK_COMMAND=install
 endif
