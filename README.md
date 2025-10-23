@@ -1,7 +1,7 @@
 # Smart-Restart
 
 This package restarts systemd services on system updates every time a package is updated (installed or 
-deleted) using the systems package mamanger (every time `dnf {update, upgrade, downgrad}` is executed).
+deleted) using the systems package mamanger (every time `dnf {update, upgrade, downgrade}` is executed).
 It primarily is tailored for Amazon Linux 2023 but easily can be ported to all RPM based systems like 
 Fedora. Smart-Restart utilizes the `needs-restarting` package from `dnf-utils` and a custom denylisting 
 mechanism to determine which services need to be restarted and how to determine if a system reboot is 
@@ -69,7 +69,7 @@ sudo make install
 
 For yum based systems:
 ```
-sudo yum isntall -y yum-utils yum-plugin-post-transaction-actions
+sudo yum install -y yum-utils yum-plugin-post-transaction-actions
 sudo make install
 ```
 
