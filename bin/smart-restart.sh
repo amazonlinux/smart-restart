@@ -169,7 +169,7 @@ generate_reboot_hint_marker() {
     # (dnf)   * glibc
     if [[ "$OS_VERSION" -eq "2" ]]; then 
         reboothint_separator="->"
-    elif [[ "$OS_VERSION" -eq "2023" ]]; then 
+    elif [[ "$OS_VERSION" -eq "2023" ||  "$OS_VERSION" -eq "2027" ]]; then 
         reboothint_separator="*"
     else
         CRIT "ERROR: Could not determine OS. I won't create a reboot hint marker"
