@@ -169,11 +169,9 @@ generate_reboot_hint_marker() {
     # (dnf)   * glibc
     if [[ "$OS_VERSION" -eq "2" ]]; then 
         reboothint_separator="->"
-    elif [[ "$OS_VERSION" -eq "2023" ]]; then 
-        reboothint_separator="*"
     else
-        CRIT "ERROR: Could not determine OS. I won't create a reboot hint marker"
-        return 1
+        # AL2023 and newer (dnf-based) use the "* <pkg>" format
+        reboothint_separator="*"
     fi
 
     # Those are the packages `needs-restarting` is scanning for. We're going to ignore the one's we know we can't restart
