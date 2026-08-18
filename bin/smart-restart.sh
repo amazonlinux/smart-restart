@@ -14,10 +14,12 @@ readonly REBOOT_HINT_PATH=${REBOOT_HINT_PATH:-/run/smart-restart}
 readonly REBOOT_HINT_MARKER="${REBOOT_HINT_PATH}"/reboot-hint-marker
 readonly CONF_PATH=${CONF_PATH:-/etc/smart-restart-conf.d}
 readonly DENYLISTS=("${CONF_PATH}"/*-denylist)
-# shellcheck disable=SC2207
-readonly PRE_RESTART=($(ls "$CONF_PATH"/*pre-restart | sort -n))
-# shellcheck disable=SC2207
-readonly POST_RESTART=($(ls "$CONF_PATH"/*post-restart | sort -n))
+# Pin name-sorted glob results (bash >= 5.3 honors GLOBSORT from the environment)
+GLOBSORT=name
+shopt -s nullglob
+readonly PRE_RESTART=("$CONF_PATH"/*pre-restart)
+readonly POST_RESTART=("$CONF_PATH"/*post-restart)
+shopt -u nullglob
 
 SYSCTL_COMMAND="${SYSCTL_COMMAND:-systemctl}"
 NEEDS_RESTARTING_COMMAND="${NEEDS_RESTARTING_COMMAND:-/usr/bin/needs-restarting}"
