@@ -3,7 +3,7 @@ PREFIX?=/usr/bin
 HOOK_DIR=
 
 MAJOR=0
-MINOR=2
+MINOR=3
 
 VERSION=v$(MAJOR).$(MINOR)
 
@@ -24,7 +24,7 @@ CONF_DIR=/etc/smart-restart-conf.d
 HOOK_ACTION=install.action
 HOOK_ACTION_TEMPLATE=$(HOOK_ACTION).in
 DENYLIST_CONF_FILE=default-denylist
-MAN_FILE=smart-restart.man1
+MAN_FILE=smart-restart.1
 MAN_FILE_LOCATION=/usr/share/man/man1
 
 
@@ -37,7 +37,7 @@ all:
 srpm: sources
 
 sources: 
-	tar czf ./smart-restart-v$(VERSION).tar.gz --transform 's,^,smart-restart-v$(VERSION)/,' bin conf Makefile smart-restart.spec doc/smart-restart.man1
+	tar czf ./smart-restart-v$(VERSION).tar.gz --transform 's,^,smart-restart-v$(VERSION)/,' bin conf Makefile smart-restart.spec doc/smart-restart.1
 
 install: 
 	$(info Dest: $(DEST_DIR))

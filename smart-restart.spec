@@ -44,7 +44,7 @@ make DEST_DIR=$RPM_BUILD_ROOT pkg_manager=%{pkg_manager} PREFIX=%{_bindir} insta
 %{_bindir}/%{name}.sh
 %config %{_sysconfdir}/%{_plugin_path}/install.action
 %config %{_sysconfdir}/smart-restart-conf.d/default-denylist
-%doc %{_mandir}/man1/smart-restart.man1.gz
+%doc %{_mandir}/man1/smart-restart.1*
 
 %changelog
 * Wed Mar 06 2024 Stanislav Uschakow <suschako@amazon.de> - 0.1-1.amzn2023.0.1
