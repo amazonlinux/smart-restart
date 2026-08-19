@@ -22,6 +22,16 @@ readonly POST_RESTART=("$CONF_PATH"/*post-restart)
 shopt -u nullglob
 
 SYSCTL_COMMAND="${SYSCTL_COMMAND:-systemctl}"
+# dnf5-only systems implement needs-restarting as a dnf5 subcommand (a
+# compat shim may still provide /usr/bin/needs-restarting). Detect the
+# active stack by what /usr/bin/dnf resolves to, so a side-installed dnf5
+# on a dnf4 system does not flip the tool. When this script runs from the
+# libdnf5 actions plugin hook, the calling dnf process still holds the
+# system repository lock, so the inner dnf5 must skip file locking to
+# avoid deadlocking on its parent transaction.
+if [[ -z "${NEEDS_RESTARTING_COMMAND:-}" ]] && [[ "$(readlink -f /usr/bin/dnf 2>/dev/null)" == *dnf5 ]]; then
+    NEEDS_RESTARTING_COMMAND="dnf5 needs-restarting --skip-file-locks"
+fi
 NEEDS_RESTARTING_COMMAND="${NEEDS_RESTARTING_COMMAND:-/usr/bin/needs-restarting}"
 
 IS_TESTING=${IS_TESTING:-}

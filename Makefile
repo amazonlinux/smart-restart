@@ -23,6 +23,16 @@ CONF_DIR=/etc/smart-restart-conf.d
 
 HOOK_ACTION=install.action
 HOOK_ACTION_TEMPLATE=$(HOOK_ACTION).in
+
+# dnf5 loads post-transaction hooks through the libdnf5 actions plugin:
+# *.actions files under /etc/dnf/libdnf5-plugins/actions.d with a
+# "HOOK:PKG_FILTER:DIRECTION:OPTIONS:CMD" line format.
+ifeq ($(pkg_manager),dnf5)
+HOOK_DIR=/etc/dnf/libdnf5-plugins/actions.d
+HOOK_ACTION=smart-restart.actions
+HOOK_ACTION_TEMPLATE=install.actions.in
+endif
+
 DENYLIST_CONF_FILE=default-denylist
 MAN_FILE=smart-restart.1
 MAN_FILE_LOCATION=/usr/share/man/man1
