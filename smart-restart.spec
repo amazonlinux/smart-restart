@@ -17,11 +17,22 @@ License:        Apache 2.0
 Requires:       yum-utils 
 Requires:       yum-plugin-post-transaction-actions
 %define         _plugin_path yum/post-actions/
+%define         _hook_file install.action
 %define         pkg_manager yum
+%elif 0%{?amzn} >= 2027
+# dnf5-only. needs-restarting is the dnf5 subcommand from dnf5-plugins,
+# and the post-transaction hook runs through the libdnf5 actions plugin
+# instead of dnf4's post-transaction-actions plugin.
+Requires:       dnf5-plugins
+Requires:       libdnf5-plugin-actions
+%define         _plugin_path dnf/libdnf5-plugins/actions.d/
+%define         _hook_file smart-restart.actions
+%define         pkg_manager dnf5
 %else
 Requires:       dnf-utils
 Requires:       dnf-plugin-post-transaction-actions
 %define         _plugin_path dnf/plugins/post-transaction-actions.d/
+%define         _hook_file install.action
 %define         pkg_manager dnf
 %endif
 
@@ -42,7 +53,7 @@ make DEST_DIR=$RPM_BUILD_ROOT pkg_manager=%{pkg_manager} PREFIX=%{_bindir} insta
 %files
 %defattr(-,root,root,-)
 %{_bindir}/%{name}.sh
-%config %{_sysconfdir}/%{_plugin_path}/install.action
+%config %{_sysconfdir}/%{_plugin_path}/%{_hook_file}
 %config %{_sysconfdir}/smart-restart-conf.d/default-denylist
 %doc %{_mandir}/man1/smart-restart.1*
 

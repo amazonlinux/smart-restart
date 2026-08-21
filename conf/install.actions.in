@@ -1,0 +1,4 @@
+# Run smart-restart after every transaction that installs or upgrades
+# packages. The libdnf5 actions plugin deduplicates identical expanded
+# commands, so this runs once per transaction.
+post_transaction:*:#COMMAND#::sh #PREFIX#/smart-restart.sh
