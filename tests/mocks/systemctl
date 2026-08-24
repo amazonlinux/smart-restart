@@ -54,7 +54,9 @@ if [[ "$1" == "daemon-reexec" ]]; then
     DBG "systemd daemon-reexec called incorrectly: (No params: $# -> $@)"
     exit 1
 elif [[ "$1" == "restart" ]]; then
-    if [[ $SYS_EXPECT_2 == 1 ]]; then
+    if [[ $SYS_EXPECT_3 == 1 ]]; then
+        [[ $# == 4 ]] && [[ "$2" == "dummy.service" ]] && [[ "$3" == "dummy2.service" ]] && [[ "$4" == "oneshot.service" ]] && exit 0
+    elif [[ $SYS_EXPECT_2 == 1 ]]; then
         [[ $# == 3 ]] && [[ "$2" == "dummy.service" ]] && [[ "$3" == "dummy2.service" ]] && exit 0
     elif [[ $SYS_EXPECT_1 == 1 ]]; then
         [[ $# == 2 ]] && [[ "$2" == "dummy2.service" ]] && exit 0
@@ -63,6 +65,25 @@ elif [[ "$1" == "restart" ]]; then
     else
         exit 98
     fi
+elif [[ "$1" == "show" ]]; then
+    # smart-restart queries (no --value; AL2's systemd 219 lacks it):
+    #   systemctl show --property=SubState <unit>      -> SubState=...
+    #   systemctl show --property=FragmentPath <unit>  -> FragmentPath=...
+    # Units listed in SYS_ONESHOT_UNITS (space separated) report "exited",
+    # like a completed Type=oneshot service; everything else is "running".
+    UNIT="${*: -1}"
+    if [[ "$*" == *"--property=FragmentPath"* ]]; then
+        echo "FragmentPath=/usr/lib/systemd/system/${UNIT}"
+        exit 0
+    fi
+    for u in $SYS_ONESHOT_UNITS; do
+        if [[ "$u" == "$UNIT" ]]; then
+            echo "SubState=exited"
+            exit 0
+        fi
+    done
+    echo "SubState=running"
+    exit 0
 elif [[ "$1" == "status" ]]; then
     if [[ $SYS_RESTART_FAILED == "1" ]]; then
         echo "$SERVICE_STATUS_FAILED"

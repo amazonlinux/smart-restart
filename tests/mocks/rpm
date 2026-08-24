@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+
+# Mock for the rpm invocations smart-restart makes:
+#   rpm -q --whatprovides --queryformat '%{NAME}\n' <name>
+#   rpm -qf --queryformat '%{NAME}\n' <path>
+# Models a system where dbus-broker provides the dbus names, glibc and
+# systemd exist, and every other reboot-class name has no provider.
+# Unit files under a path containing "dbus-broker" belong to dbus-broker;
+# everything else belongs to dummy-pkg.
+
+DBG() { [[ "$DEBUG" != "" ]] && >&2 echo "$@"; }
+
+DBG "rpm-mock invoked with: ${*}"
+
+NAME="${*: -1}"
+
+if [[ "$*" == *"--whatprovides"* ]]; then
+    case "$NAME" in
+        dbus|dbus-broker|dbus-daemon)
+            echo "dbus-broker"
+            ;;
+        glibc)
+            echo "glibc"
+            ;;
+        systemd)
+            echo "systemd"
+            ;;
+        *)
+            echo "no package provides $NAME"
+            exit 1
+            ;;
+    esac
+    exit 0
+elif [[ "$1" == "-qf" ]]; then
+    case "$NAME" in
+        *dbus-broker*)
+            echo "dbus-broker"
+            ;;
+        *)
+            echo "dummy-pkg"
+            ;;
+    esac
+    exit 0
+fi
+
+DBG "rpm-mock called incorrectly: (No params: $# -> $*)"
+exit 98

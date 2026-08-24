@@ -20,6 +20,10 @@ UUT=../bin/smart-restart.sh
 export CONF_PATH="$(pwd)"/conf
 export NEEDS_RESTARTING_COMMAND="$(pwd)"/mocks/needs-restarting
 export SYSCTL_COMMAND="$(pwd)"/mocks/systemctl
+export RPM_COMMAND="$(pwd)"/mocks/rpm
+# The mock needs-restarting is not a dnf5 subcommand, so auto-detection
+# would disable the dnf5 guards; enable them explicitly for the tests.
+export ENFORCE_RESTART_SAFETY_GUARDS=1
 export IS_TESTING="1"
 export REBOOT_HINT_PATH="$(pwd)"
 
@@ -34,6 +38,7 @@ echo -e "=========================== ${YELLOW}$TEST_NAME${COLOR_OFF} started "==
 reset_test_environment() {
     SERVICES=()
     BLOCKED_SERVICES=()
+    REBOOT_CLASS_PACKAGES=""
     PRE_RESTART_HEALTHY="0"
     POST_RESTART_HEALTHY="0"
     echo "" > conf/default-denylist

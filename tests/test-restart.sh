@@ -153,6 +153,94 @@ function denylist_systemd_failed() {
 
 
 
+function completed_oneshot_not_restarted() {
+    DESCRIPTION="Completed oneshot service is filtered from restart list"
+    reset_test_environment
+    local -i retval=0
+
+    # needs-restarting reports dummy.service, dummy2.service and
+    # oneshot.service; the latter is "active (exited)" (SubState "exited")
+    # and must not be restarted.
+    NEED_RESTART_2_ONESHOT="1" SYS_ONESHOT_UNITS="oneshot.service" assemble_service_list
+    count_pre_restart_health
+    # SYS_EXPECT_2 makes the systemctl mock only accept a restart of exactly
+    # dummy.service dummy2.service, proving oneshot.service was dropped.
+    SYS_EXPECT_2="1" SYS_RESTART_FAILED="0" restart_services || retval=$?
+
+    if [[ $retval == 0 ]]; then
+        PASSED "$DESCRIPTION"
+    else 
+        FAILED "$DESCRIPTION (error: $retval)"
+    fi
+    PRE_RESTART_HEALTHY="0"
+    POST_RESTART_HEALTHY="0"
+}
+
+
+
+function reboot_class_service_not_restarted() {
+    DESCRIPTION="Reboot-class service is withheld from restart list"
+    reset_test_environment
+    local -i retval=0
+
+    # needs-restarting reports dummy.service, dummy2.service and
+    # dbus-broker.service; the rpm mock owns the latter's unit file via
+    # dbus-broker, which provides a reboot-class name, so it must be
+    # withheld (dnf4 behavior).
+    NEED_RESTART_2_DBUS="1" assemble_service_list 2>/dev/null
+    count_pre_restart_health
+    # SYS_EXPECT_2 makes the systemctl mock only accept a restart of exactly
+    # dummy.service dummy2.service, proving dbus-broker.service was dropped.
+    SYS_EXPECT_2="1" SYS_RESTART_FAILED="0" restart_services || retval=$?
+
+    if [[ $retval == 0 ]]; then
+        PASSED "$DESCRIPTION"
+    else 
+        FAILED "$DESCRIPTION (error: $retval)"
+    fi
+    PRE_RESTART_HEALTHY="0"
+    POST_RESTART_HEALTHY="0"
+}
+
+function reboot_class_service_warns() {
+    DESCRIPTION="Withheld reboot-class service prints dnf4-style warning to stderr"
+    reset_test_environment
+    local warning
+
+    warning=$(NEED_RESTART_2_DBUS="1" assemble_service_list 2>&1 >/dev/null)
+
+    if grep -q "should not be restarted but require a reboot" <<<"$warning" \
+        && grep -q "dbus-broker.service" <<<"$warning"; then
+        PASSED "$DESCRIPTION"
+    else 
+        FAILED "$DESCRIPTION (stderr: $warning)"
+    fi
+}
+
+function legacy_stack_keeps_dnf4_behavior() {
+    DESCRIPTION="Guards disabled (dnf4/yum stack): list is restarted verbatim"
+    reset_test_environment
+    local -i retval=0
+
+    # On AL2/AL2023 the guards are off (dnf4 already applies them itself);
+    # everything needs-restarting printed must be restarted unchanged, even
+    # units our mocks would classify as oneshot.
+    ENFORCE_RESTART_SAFETY_GUARDS=0 NEED_RESTART_2_ONESHOT="1" SYS_ONESHOT_UNITS="oneshot.service" \
+        assemble_service_list
+    count_pre_restart_health
+    SYS_EXPECT_3="1" SYS_RESTART_FAILED="0" restart_services || retval=$?
+
+    if [[ $retval == 0 ]]; then
+        PASSED "$DESCRIPTION"
+    else 
+        FAILED "$DESCRIPTION (error: $retval)"
+    fi
+    PRE_RESTART_HEALTHY="0"
+    POST_RESTART_HEALTHY="0"
+}
+
+
+
 restart_successful
 restart_failed
 all_services_denylisted
@@ -161,3 +249,7 @@ denylist_systemd
 denylist_systemd_failed
 health_check_pass
 health_check_fail
+completed_oneshot_not_restarted
+reboot_class_service_not_restarted
+reboot_class_service_warns
+legacy_stack_keeps_dnf4_behavior
