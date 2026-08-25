@@ -33,9 +33,24 @@ if [[ -z "${NEEDS_RESTARTING_COMMAND:-}" ]] && [[ "$(readlink -f /usr/bin/dnf 2>
     NEEDS_RESTARTING_COMMAND="dnf5 needs-restarting --skip-file-locks"
 fi
 NEEDS_RESTARTING_COMMAND="${NEEDS_RESTARTING_COMMAND:-/usr/bin/needs-restarting}"
+RPM_COMMAND="${RPM_COMMAND:-rpm}"
 
 IS_TESTING=${IS_TESTING:-}
 DEBUG=${DEBUG:-}
+
+# The guards below (live-process filter, reboot-class withholding) compensate
+# for dnf5's needs-restarting regressions. dnf4's and yum's needs-restarting
+# derive services from running processes and withhold reboot-class services
+# themselves, so their output never needs the guards - keep the legacy (AL2,
+# AL2023) code paths unchanged and enable the guards only on dnf5 stacks.
+# Override with ENFORCE_RESTART_SAFETY_GUARDS=1/0.
+if [[ -z "${ENFORCE_RESTART_SAFETY_GUARDS:-}" ]]; then
+    if [[ "$NEEDS_RESTARTING_COMMAND" == *dnf5* ]]; then
+        ENFORCE_RESTART_SAFETY_GUARDS=1
+    else
+        ENFORCE_RESTART_SAFETY_GUARDS=0
+    fi
+fi
 
 SERVICES=()
 BLOCKED_SERVICES=()
@@ -54,6 +69,69 @@ assert_root() {
     return 0
 }
 
+# dnf5's `needs-restarting -s` reports any unit with ActiveState "active",
+# which includes completed oneshot units in "active (exited)" state, e.g.
+# cloud-config.service after boot. Those have no processes that could be
+# running outdated code, and "restarting" them re-executes their one-time
+# (typically boot-time) action instead of reloading anything; re-running
+# cloud-config.service deadlocks under cloud-init >= 25.3's single-process
+# architecture. dnf4's needs-restarting never reported process-less units.
+# Keep only services with live processes (SubState "running"). This guard
+# can be dropped once the dnf5-side fix is merged and deployed:
+# https://github.com/rpm-software-management/dnf5 (needs-restarting
+# SubState filter).
+# Note: "--property=X" without "--value" plus prefix stripping, because
+# "--value" requires systemd >= 230 and AL2 ships 219.
+service_has_live_processes() {
+    local sub_state
+    sub_state=$($SYSCTL_COMMAND show --property=SubState "$1" 2>/dev/null)
+    [[ "${sub_state#SubState=}" == "running" ]]
+}
+
+# dnf4's needs-restarting refuses to recommend restarting services defined
+# by reboot-class packages: units whose unit file belongs to an installed
+# package providing one of the NEED_REBOOT names are withheld from the -s
+# output and printed to stderr as requiring a reboot instead. dnf5 dropped
+# that guard, so it happily lists e.g. dbus-broker.service after a dbus
+# update - and blindly restarting that mid-transaction can sever the
+# session driving the update. Enforce the same rule here: resolve which
+# installed packages provide the reboot-class names (same provides-based
+# matching as dnf4), and withhold services whose unit file they own.
+# Only the rpmdb is read (no dnf metadata, no locks), which is safe from
+# inside the transaction hook.
+REBOOT_CLASS_PACKAGES=""
+assemble_reboot_class_packages() {
+    # dnf4's NEED_REBOOT list plus dnf5's CORE_PACKAGE_NAMES additions
+    # (https://access.redhat.com/solutions/27943)
+    local reboot_class_provides=(kernel kernel-core kernel-PAE kernel-rt kernel-smp kernel-xen
+                                 linux-firmware microcode_ctl dbus dbus-broker dbus-daemon
+                                 glibc hal systemd udev gnutls openssl-libs)
+    local name pkgs
+    for name in "${reboot_class_provides[@]}"; do
+        pkgs=$($RPM_COMMAND -q --whatprovides --queryformat '%{NAME}\n' "$name" 2>/dev/null) || continue
+        REBOOT_CLASS_PACKAGES+="${pkgs}"$'\n'
+    done
+    REBOOT_CLASS_PACKAGES=$(sort -u <<<"$REBOOT_CLASS_PACKAGES")
+}
+
+service_requires_reboot() {
+    [[ -n "$REBOOT_CLASS_PACKAGES" ]] || assemble_reboot_class_packages
+
+    local fragment_path owner
+    fragment_path=$($SYSCTL_COMMAND show --property=FragmentPath "$1" 2>/dev/null)
+    fragment_path="${fragment_path#FragmentPath=}"
+    [[ -n "$fragment_path" ]] || return 1
+    owner=$($RPM_COMMAND -qf --queryformat '%{NAME}\n' "$fragment_path" 2>/dev/null) || return 1
+    grep -qFx "$owner" <<<"$REBOOT_CLASS_PACKAGES"
+}
+
+# Combined guard used wherever needs-restarting -s output is consumed.
+# On dnf4/yum stacks this always passes, keeping legacy behavior identical.
+service_is_restart_candidate() {
+    [[ "$ENFORCE_RESTART_SAFETY_GUARDS" == 1 ]] || return 0
+    service_has_live_processes "$1" && ! service_requires_reboot "$1"
+}
+
 assemble_service_list() {
     # shellcheck disable=SC2207
     local all_services=($($NEEDS_RESTARTING_COMMAND -s | xargs))
@@ -65,15 +143,29 @@ assemble_service_list() {
     DBG "Blocked services: ${BLOCKED_SERVICES[*]}"
     DBG "All services: ${all_services[*]}"
 
+    local reboot_required_services=()
     for SERVICE in "${all_services[@]}"; do
         grep -qF "${SERVICE}" <<<"${BLOCKED_SERVICES[*]}"
         if [[ $? -eq 0 ]]; then
             DBG "Ignoring ${SERVICE}"
+        elif [[ "$ENFORCE_RESTART_SAFETY_GUARDS" == 1 ]] && ! service_has_live_processes "${SERVICE}"; then
+            DBG "Ignoring ${SERVICE} (no running processes)"
+        elif [[ "$ENFORCE_RESTART_SAFETY_GUARDS" == 1 ]] && service_requires_reboot "${SERVICE}"; then
+            DBG "Ignoring ${SERVICE} (owned by a reboot-class package)"
+            reboot_required_services+=("${SERVICE}")
         else
             SERVICES+=("${SERVICE}")
             DBG "Adding ${SERVICE}"
         fi
     done
+
+    # Same warning dnf4's needs-restarting prints when it withholds these
+    if [[ ${#reboot_required_services[@]} != 0 ]]; then
+        >&2 echo "Warning: The following services should not be restarted but require a reboot:"
+        for SERVICE in "${reboot_required_services[@]}"; do
+            >&2 echo " ${SERVICE}"
+        done
+    fi
 }
 
 execute_pre_hooks() {
@@ -165,7 +257,7 @@ generate_reboot_hint_marker() {
     local post_restart_services=$($NEEDS_RESTARTING_COMMAND -s | xargs)
     local failed_services=()
     for SERVICE in $post_restart_services; do
-         if ! grep -qF "$SERVICE" <<<"${BLOCKED_SERVICES[*]}"; then
+         if ! grep -qF "$SERVICE" <<<"${BLOCKED_SERVICES[*]}" && service_is_restart_candidate "$SERVICE"; then
             DBG "$SERVICE not denylisted. Service restart required"
             failed_services+=("${SERVICE}")
             reboot_hint=1
